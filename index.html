@@ -77,6 +77,7 @@ button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
   <button class="btn gh" id="gs">Tekrar</button>
   <button class="btn gh" id="gj">Yazma günlüğü</button>
   <button class="btn gh" id="gr">Zayıf yönler</button>
+  <button class="btn" id="gb" style="background:var(--ink);color:var(--bg)">Skor tablosu</button>
   </div>
   <button class="btn gh" id="nb">Kelime defterim (<span id="nc">0</span>)</button>
   <p class="err" id="herr"></p>
@@ -123,6 +124,21 @@ button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
   <button class="btn" id="rs"></button>
 </section>
 
+<section id="au" class="card hide">
+  <h2 style="margin-top:0">Giriş yap ya da kayıt ol</h2>
+  <p class="task">Bir takma ad ve şifre seç. Takma ad herkeste farklı olmalı.</p>
+  <input class="ta" id="an" style="min-height:0;margin-bottom:10px" placeholder="Takma ad" maxlength="16" autocapitalize="off" autocomplete="username" spellcheck="false">
+  <input class="ta" id="ap" type="password" style="min-height:0" placeholder="Şifre (en az 4 karakter)" autocomplete="current-password">
+  <button class="btn" id="al">Giriş yap</button>
+  <button class="btn gh" id="ar">Yeni hesap oluştur</button>
+  <p class="err" id="ae"></p>
+</section>
+
+<section id="bd" class="card hide">
+  <h2 style="margin-top:0">Skor tablosu</h2><div id="bl"></div>
+  <button class="btn gh" id="bo">Çıkış yap</button>
+</section>
+
 <section id="done" class="card hide" style="text-align:center">
   <div class="big" id="dsc"></div><p id="dmsg"></p>
   <h2>Bu derste öğrendiklerin</h2><ul class="wl" style="text-align:left" id="dw"></ul>
@@ -132,10 +148,10 @@ button:focus-visible{outline:3px solid var(--ac);outline-offset:2px}
 
 <script>
 /* Claude yerine kendi sunucu fonksiyonuna (Gemini) bağlanan köprü */
-window.claude={use:async n=>n==="sample"?{json:async p=>{const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:p})});if(!r.ok)throw {code:"error"};return r.json()}}:null};
+window.claude={use:async n=>n==="sample"?{json:async p=>{const r=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json","X-Auth":AUTH?AUTH.token:""},body:JSON.stringify({prompt:p})});if(!r.ok)throw {code:"error"};return r.json()}}:null};
 </script>
 <script>
-const $=id=>document.getElementById(id), show=n=>{["home","book","lesson","vocab","qz","jr","rp","done"].forEach(x=>$(x).classList.toggle("hide",x!==n));if(n==="home")renderHome();$("hm").classList.toggle("hide",n==="home")};
+const $=id=>document.getElementById(id), show=n=>{if(!AUTH&&n!=="au")n="au";["home","book","lesson","vocab","qz","jr","rp","bd","au","done"].forEach(x=>$(x).classList.toggle("hide",x!==n));if(n==="home")renderHome();$("hm").classList.toggle("hide",n==="home"||n==="au")};
 const LV=["A1","A2","B1","B2"], TP=["Karışık","Geçmiş zaman","Gelecek zaman","Soru kurma","If cümleleri","Edilgen yapı","Günlük konuşma"];
 const FALL=[
 {en:"I forgot my keys at home.",tr:"Anahtarlarımı evde unuttum.",extra:["forget","my"],note:"Geçmiş zamanda forget düzensizdir: forget → forgot.",words:[{en:"forget",tr:"unutmak"}]},
@@ -146,7 +162,7 @@ const FALL=[
 {en:"I am going to visit my grandmother tomorrow.",tr:"Yarın büyükannemi ziyaret edeceğim.",extra:["will","visiting"],note:"Planlanmış niyet için be going to + yalın fiil kullanılır.",words:[{en:"visit",tr:"ziyaret etmek"}]}];
 let S={lv:1,tp:0,xp:0,st:0,last:"",book:[]};
 try{Object.assign(S,JSON.parse(localStorage.getItem("ca2")||"{}"))}catch(e){}
-const save=()=>{try{localStorage.setItem("ca2",JSON.stringify(S))}catch(e){}};
+const save=()=>{try{localStorage.setItem("ca2",JSON.stringify(S))}catch(e){}sync()};
 const today=()=>new Date().toISOString().slice(0,10);
 function head(){if(S.dd!==today()){S.dd=today();S.dx=0}S.dx=(S.dx||0)+(S.lx==null?0:Math.max(0,S.xp-S.lx));S.lx=S.xp;$("xp").textContent=S.xp+" XP";$("st").textContent=S.st+" gün";$("nc").textContent=S.book.length}
 function opts(el,arr,key){el.innerHTML=arr.map((a,i)=>'<button class="opt" data-i="'+i+'" aria-pressed="'+(S[key]===i)+'">'+a+'</button>').join("");
@@ -298,7 +314,21 @@ $('gr').onclick=()=>{const r=Object.entries(S.ws||{}).map(([t,o])=>({t,o,p:o.ok/
  $('rl').innerHTML=r.length?'<ul class="wl">'+r.map(x=>'<li style="display:block"><span style="display:flex;justify-content:space-between;color:var(--ink)"><span>'+esc(x.t)+'</span><span>'+x.o.ok+'/'+x.o.n+'</span></span><div class="bar" style="margin:6px 0 0"><i style="width:'+x.p*100+'%"></i></div></li>').join('')+'</ul>':'<p>Henüz veri yok. Birkaç egzersiz çöz, burada konularına göre başarını göreceksin.</p>';
  $('rs').classList.toggle('hide',!weak);$('rs').textContent=weak?'Zayıf konuyu çalış: '+weak:'';show('rp')};
 $('rs').onclick=()=>{const k=TP.indexOf(weak);if(k>0){S.tp=k;opts($('tp'),TP,'tp');save();$('go').click()}else if(weak==='Kelime bilgisi')$('gv').click();else if(weak==='Yazma')$('gj').click();else $('gf').click()};
-opts($("lv"),LV,"lv");opts($("tp"),TP,"tp");head();show("home");
+let AUTH=null,SY=0;try{AUTH=JSON.parse(localStorage.getItem('ca2auth')||'null')}catch(e){}
+const api=async b=>{const r=await fetch('/api/game',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)});const d=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(d.error||'Bağlantı hatası'),{status:r.status});return d};
+function sync(){clearTimeout(SY);if(AUTH)SY=setTimeout(push,1500)}
+async function push(){if(!AUTH)return;try{await api({action:'save',token:AUTH.token,state:S})}catch(e){if(e.status===401)out(true)}}
+function applyState(s){S=Object.assign({lv:1,tp:0,xp:0,st:0,last:'',book:[]},s||{});try{localStorage.setItem('ca2',JSON.stringify(S))}catch(e){}opts($('lv'),LV,'lv');opts($('tp'),TP,'tp');head()}
+function out(expired){AUTH=null;try{localStorage.removeItem('ca2auth');localStorage.removeItem('ca2')}catch(e){}applyState(null);$('ae').textContent=expired?'Oturum süresi doldu, tekrar giriş yap.':'';show('au')}
+async function doAuth(kind){const n=$('an').value.trim(),p=$('ap').value;$('ae').textContent='';$('al').disabled=$('ar').disabled=true;
+ try{const d=await api({action:kind,nick:n,pass:p,state:S});AUTH={nick:d.nick,token:d.token};try{localStorage.setItem('ca2auth',JSON.stringify(AUTH))}catch(e){}if(kind==='login')applyState(d.state);$('ap').value='';show('home')}
+ catch(e){$('ae').textContent=e.message||'Bağlantı hatası'}
+ $('al').disabled=$('ar').disabled=false}
+$('al').onclick=()=>doAuth('login');$('ar').onclick=()=>doAuth('register');
+$('gb').onclick=async()=>{show('bd');$('bl').innerHTML='<p>Yükleniyor…</p>';await push();try{const d=await api({action:'board',token:AUTH.token});$('bl').innerHTML='<ul class="wl">'+d.board.map((x,i)=>'<li style="'+(x.nick===d.me?'font-weight:700;color:var(--ink)':'')+'"><span>'+(i+1)+'. '+esc(x.nick)+'</span><span>'+x.xp+' XP · '+x.st+' gün</span></li>').join('')+'</ul>'}catch(e){$('bl').innerHTML='<p class="err">'+esc(e.message)+'</p>'}};
+$('bo').onclick=async()=>{await push();out(false)};
+if(AUTH)api({action:'load',token:AUTH.token}).then(d=>{if(d.state)applyState(d.state)}).catch(e=>{if(e.status===401)out(true)});
+opts($("lv"),LV,"lv");opts($("tp"),TP,"tp");head();show(AUTH?"home":"au");
 </script>
 </body>
 </html>
