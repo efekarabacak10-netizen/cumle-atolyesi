@@ -5,22 +5,26 @@ export default async (req) => {
   if (typeof prompt !== "string" || !prompt || prompt.length > 4000) return new Response("Bad request", { status: 400 });
 
   const key = Netlify.env.get("GEMINI_API_KEY");
-  const model = Netlify.env.get("GEMINI_MODEL") || "gemini-2.5-flash";
+  const model = Netlify.env.get("GEMINI_MODEL") || "gemini-3.8-flash";
+  const budget = Netlify.env.get("GEMINI_THINKING_BUDGET");
   if (!key) return new Response("Missing GEMINI_API_KEY", { status: 500 });
+
+  const generationConfig = { responseMimeType: "application/json" };
+  if (budget !== undefined && budget !== "") {
+    generationConfig.thinkingConfig = { thinkingBudget: Number(budget) };
+  }
 
   let r;
   try {
     r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: "application/json" }
-      })
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig }),
+      signal: AbortSignal.timeout(20000)
     });
   } catch (e) {
-    console.error("Network error", String(e));
-    return new Response("Network error: " + String(e), { status: 502 });
+    console.error("Gemini request failed", String(e));
+    return new Response("Gemini request failed: " + String(e), { status: 504 });
   }
   if (!r.ok) {
     const body = (await r.text()).slice(0, 600);
